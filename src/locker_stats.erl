@@ -4,7 +4,8 @@
 -export([start_link/0, add_handler/1]).
 
 %% Stat reporting API
--export([write/6, failed_write_lock/5]).
+-export([write/7,
+         failed_write_lock/5]).
 
 -define(SERVER, ?MODULE).
 
@@ -19,11 +20,10 @@ add_handler(Module) ->
     gen_event:add_handler(?SERVER, Module, []).
 
 %% Report partial writes.
-write(Key, Type, Nodes, Quorum, OkWrites, NotOkWrites)
-  when length(Nodes) > length(OkWrites) ->
-    notify({partial_write, Key, Type, Nodes, Quorum, OkWrites, NotOkWrites});
-write(_Key, _Type, _Nodes, _Quorum, _OkWrites, _NotOkWrites) -> ok.
-
+write(_Key, _Type, _Nodes, _Quorum, _OkWrites, [], []) -> ok;
+write(Key, Type, Nodes, Quorum, OkWrites, NotOkWrites, BadWriteNodes) ->
+    notify({partial_write, Key, Type, Nodes, Quorum, OkWrites,
+            NotOkWrites, BadWriteNodes}).
 
 %% Report failed write locks. This is the first part of a cmd to locker
 %% Read more in the readme.

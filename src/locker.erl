@@ -93,11 +93,11 @@ lock(Key, Value, LeaseLength, Timeout) ->
             %% write on all masters. The write also releases the
             %% lock. Replicas are synced asynchronously by the
             %% masters.
-            {WriteReplies, _} = do_write(Nodes,
-                                         Tag, Key, Value,
-                                         LeaseLength, Timeout),
+            {WriteReplies, BadWriteNodes} =
+                do_write(Nodes, Tag, Key, Value, LeaseLength, Timeout),
             {OkWrites, NotOkWrites} = ok_responses(WriteReplies),
-            locker_stats:write(Key, update, Nodes, W, OkWrites, NotOkWrites),
+            locker_stats:write(Key, update, Nodes, W, OkWrites, NotOkWrites,
+                               BadWriteNodes),
             {ok, W, length(OkNodes), length(OkWrites)};
         {OkNodes, NotOkNodes} ->
             {_AbortReplies, NotAbortReplies} =
@@ -124,9 +124,11 @@ update(Key, Value, NewValue, Timeout) ->
 
     case ok_responses(RequestReplies) of
         {OkNodes, _} when length(OkNodes) >= W ->
-            {UpdateReplies, _} = do_update(Nodes, Tag, Key, NewValue, Timeout),
+            {UpdateReplies, BadWriteNodes} =
+                do_update(Nodes, Tag, Key, NewValue, Timeout),
             {OkUpdates, NotOkWrites} = ok_responses(UpdateReplies),
-            locker_stats:write(Key, update, Nodes, W, OkUpdates, NotOkWrites),
+            locker_stats:write(Key, update, Nodes, W, OkUpdates, NotOkWrites,
+                               BadWriteNodes),
             {ok, W, length(OkNodes), length(OkUpdates)};
         {OkNodes, NotOkNodes} ->
             {_AbortReplies, NotAbortReplies} =
@@ -173,11 +175,12 @@ release(Key, Value, Timeout) ->
     case ok_responses(WriteLockReplies) of
         {OkNodes, _} when length(OkNodes) >= W ->
             Request = {release, Key, Value, Tag},
-            {ReleaseReplies, _BadNodes} =
+            {ReleaseReplies, BadWriteNodes} =
                 gen_server:multi_call(Nodes ++ Replicas, locker, Request, Timeout),
 
             {OkWrites, NotOkWrites} = ok_responses(ReleaseReplies),
-            locker_stats:write(Key, release, Nodes, W, OkWrites, NotOkWrites),
+            locker_stats:write(Key, release, Nodes, W, OkWrites, NotOkWrites,
+                               BadWriteNodes),
             {ok, W, length(OkNodes), length(OkWrites)};
         {OkNodes, NotOkNodes} ->
             {_AbortReplies, NotAbortReplies} =
@@ -206,11 +209,12 @@ extend_lease(Key, Value, LeaseLength, Timeout) ->
         {N, _E} when length(N) >= W ->
 
             Request = {extend_lease, Tag, Key, Value, LeaseLength},
-            {Replies, _} = gen_server:multi_call(Nodes, locker, Request, Timeout),
+            {Replies, BadWriteNodes} =
+                gen_server:multi_call(Nodes, locker, Request, Timeout),
             {OkWrites, FailedExtended} = ok_responses(Replies),
             release_write_lock(FailedExtended, Tag, Timeout),
             locker_stats:write(Key, extend_leases, Nodes, W, OkWrites,
-                               FailedExtended),
+                               FailedExtended, BadWriteNodes),
             ok;
         _ ->
             {_AbortReplies, _} = release_write_lock(Nodes, Tag, Timeout),
