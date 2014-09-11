@@ -592,10 +592,10 @@ handle_info(expire_leases, State) ->
                         notify_release_waiter(Key, released, RemainingWaiters);
                     [{Key, Value, OtherExp}] ->
                         locker_stats:false_expire(Key, Value, OtherExp),
-                        ok;
+                        RemainingWaiters;
                     Other ->
                         locker_stats:false_expire(Key, Other, undefined),
-                        ok
+                        RemainingWaiters
                 end
         end,
     NewWaiters = lists:foldl(ReleaseLockAndNotifyWaiters,
