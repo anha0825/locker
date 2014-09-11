@@ -24,7 +24,9 @@ delete_handler(Module) ->
     gen_event:delete_handler(?SERVER, Module, []).
 
 %% Report partial writes.
-write(_Key, _Type, _Nodes, _Quorum, _OkWrites, [], []) -> ok;
+write(_Key, _Type, Nodes, _Quorum, OkWrites, [], [])
+  when length(Nodes) =:= length(OkWrites) ->
+    ok;
 write(Key, Type, Nodes, Quorum, OkWrites, NotOkWrites, BadWriteNodes) ->
     notify({partial_write, Key, Type, Nodes, Quorum, OkWrites,
             NotOkWrites, BadWriteNodes}).
@@ -35,7 +37,8 @@ write(Key, Type, Nodes, Quorum, OkWrites, NotOkWrites, BadWriteNodes) ->
 %%   They might still have a write lock in locker for this key.
 %%   You should be extra suspicius if they show up in OkNodes.
 failed_write_lock(Key, Type, OkNodes, NotOkNodes, NotAbortReplies) ->
-    notify({failed_write_lock, Key, Type, OkNodes, NotOkNodes, NotAbortReplies}).
+    notify({failed_write_lock, Key, Type, OkNodes, NotOkNodes,
+            NotAbortReplies}).
 
 false_expire(Key, PossibleValue, PossibleOtherExpire) ->
     notify({false_expire, Key, PossibleValue, PossibleOtherExpire}).
