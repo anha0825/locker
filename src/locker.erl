@@ -593,8 +593,8 @@ handle_info(expire_leases, State) ->
                     [{Key, Value, OtherExp}] ->
                         locker_stats:false_expire(Key, Value, OtherExp),
                         ok;
-                    [] ->
-                        locker_stats:false_expire(Key, undefined, un),
+                    Other ->
+                        locker_stats:false_expire(Key, Other, undefined),
                         ok
                 end
         end,
