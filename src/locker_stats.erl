@@ -1,10 +1,11 @@
 -module(locker_stats).
 
 %% API
--export([start_link/0, add_handler/1]).
+-export([start_link/0, add_handler/1, false_expire/3]).
 
 %% Stat reporting API
 -export([write/7,
+         delete_handler/1,
          failed_write_lock/5]).
 
 -define(SERVER, ?MODULE).
@@ -19,6 +20,9 @@ start_link() ->
 add_handler(Module) ->
     gen_event:add_handler(?SERVER, Module, []).
 
+delete_handler(Module) ->
+    gen_event:delete_handler(?SERVER, Module, []).
+
 %% Report partial writes.
 write(_Key, _Type, _Nodes, _Quorum, _OkWrites, [], []) -> ok;
 write(Key, Type, Nodes, Quorum, OkWrites, NotOkWrites, BadWriteNodes) ->
@@ -32,6 +36,9 @@ write(Key, Type, Nodes, Quorum, OkWrites, NotOkWrites, BadWriteNodes) ->
 %%   You should be extra suspicius if they show up in OkNodes.
 failed_write_lock(Key, Type, OkNodes, NotOkNodes, NotAbortReplies) ->
     notify({failed_write_lock, Key, Type, OkNodes, NotOkNodes, NotAbortReplies}).
+
+false_expire(Key, PossibleValue, PossibleOtherExpire) ->
+    notify({false_expire, Key, PossibleValue, PossibleOtherExpire}).
 
 %%%===================================================================
 %%% Internal functions

@@ -584,8 +584,17 @@ handle_info(expire_leases, State) ->
     ReleaseLockAndNotifyWaiters =
         fun ({At, Key}, RemainingWaiters) ->
                 delete_expire(At, Key),
-                ets:delete(?DB, Key),
-                notify_release_waiter(Key, released, RemainingWaiters)
+                case ets:lookup(?DB, Key) of
+                    [{Key, _Value, ExpAt}] when ExpAt =:= At ->
+                        ets:delete(?DB, Key),
+                        notify_release_waiter(Key, released, RemainingWaiters);
+                    [{Key, Value, OtherExp}] ->
+                        locker_stats:false_expire(Key, Value, OtherExp),
+                        ok;
+                    [] ->
+                        locker_stats:false_expire(Key, undefined, un),
+                        ok
+                end
         end,
     NewWaiters = lists:foldl(ReleaseLockAndNotifyWaiters,
                              State#state.release_waiters, Expired),
