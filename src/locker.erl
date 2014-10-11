@@ -16,7 +16,7 @@
 -export([lock/2, lock/3, lock/4, update/3, update/4,
          extend_lease/3,release/2, release/3]).
 -export([wait_for/2, wait_for_release/1, wait_for_release/2]).
--export([dirty_read/1, master_dirty_read/1]).
+-export([dirty_read/1, master_dirty_read/1, expires/1]).
 -export([lag/0, summary/0]).
 
 
