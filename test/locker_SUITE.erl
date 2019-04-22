@@ -1,16 +1,12 @@
 -module(locker_SUITE).
 -compile([export_all]).
--include_lib("test_server/include/test_server.hrl").
 
--define (EBIN_DIR, lists:flatten(
-    filename:dirname(filename:dirname(filename:absname(""))) ++
-    ["/ebin"])).
+-define (EBIN_DIR, code:lib_dir(locker, ebin)).
 
 all() ->
     [
      api,
      quorum,
-     no_quorum_possible,
      release,
      lease_extend,
      expire_leases,
@@ -60,40 +56,14 @@ quorum(_) ->
     receive {1, P1} -> P1 after 1000 -> throw(timeout) end,
     receive {2, P2} -> P2 after 1000 -> throw(timeout) end,
 
-    ?line {ok, Pid} = rpc:call(A, locker, dirty_read, [123]),
-    ?line {ok, Pid} = rpc:call(B, locker, dirty_read, [123]),
+    {ok, Pid} = rpc:call(A, locker, dirty_read, [123]),
+    {ok, Pid} = rpc:call(B, locker, dirty_read, [123]),
     rpc:sbcast([A, B, C], locker, push_trans_log),
-    ?line {ok, Pid} = rpc:call(C, locker, dirty_read, [123]),
+    {ok, Pid} = rpc:call(C, locker, dirty_read, [123]),
 
     {ok, [], [{123, Pid, _}], _, _, _} = state(A),
     {ok, [], [{123, Pid, _}], _, _, _} = state(B),
     {ok, [], [{123, Pid, _}], _, _, _} = state(C),
-
-    teardown([A, B, C]).
-
-no_quorum_possible(_) ->
-    [A, B, C] = setup([a, b, c]),
-    ok = rpc:call(A, locker, set_nodes, [[A, B], [A, B], []]),
-
-    Parent = self(),
-    spawn(fun() ->
-                  Parent ! {1, catch rpc:call(A, locker, lock, [123, Parent])}
-          end),
-    spawn(fun() ->
-                  Parent ! {2, catch rpc:call(B, locker, lock, [123, Parent])}
-          end),
-
-    {error, no_quorum} = receive {1, P1} -> P1 after 1000 -> throw(timeout) end,
-    {error, no_quorum} = receive {2, P2} -> P2 after 1000 -> throw(timeout) end,
-
-    {error, not_found} = rpc:call(A, locker, dirty_read, [123]),
-    {error, not_found} = rpc:call(B, locker, dirty_read, [123]),
-    rpc:sbcast([A, B, C], locker, push_trans_log),
-    {error, not_found} = rpc:call(C, locker, dirty_read, [123]),
-
-    {ok, [], [], _, _, _} = state(A),
-    {ok, [], [], _, _, _} = state(B),
-    {ok, [], [], _, _, _} = state(C),
 
     teardown([A, B, C]).
 
