@@ -1,9 +1,6 @@
-logs
 .eunit
-ebin
-deps
 *.beam
 *~
 .DS_Store
-.rebar
-
+.rebar3
+_build/
